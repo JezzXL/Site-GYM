@@ -40,7 +40,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 export function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <Layout showNavbar={false}>
-      <div className="min-h-screen bg-gradient-to-br from-[#6da67a] to-[#4a4857] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-linear-to-br from-[#6da67a] to-[#4a4857] flex items-center justify-center p-4">
         {children}
       </div>
     </Layout>
