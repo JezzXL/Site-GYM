@@ -1,78 +1,95 @@
 import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { AuthContext } from './authContext';
-import type { AuthContextType } from './authContext';
+import { onAuthStateChanged } from 'firebase/auth';
 import type { User } from '../types/user';
+import { AuthContext } from './authContext';
+import { auth } from '../services/firebase';
+import {
+  login as loginService,
+  register as registerService,
+  logout as logoutService,
+  getCurrentUser,
+} from '../services/authService';
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Simulação de login (você pode substituir por uma chamada real de API)
-  const login = async (email: string, _password: string) => {
-  void _password; // evita aviso do ESLint
-  setLoading(true);
-  try {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  useEffect(() => {
+    // Observer para mudanças no estado de autenticação
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          // Buscar dados completos do usuário
+          const userData = await getCurrentUser();
+          setUser(userData);
+        } catch (error) {
+          console.error('Erro ao buscar dados do usuário:', error);
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
 
-    const fakeUser: User = {
-      id: '1',
-      name: 'Aluno Teste',
-      email,
-      role: 'aluno',
-      createdAt: new Date(),
-    };
+    // Cleanup
+    return () => unsubscribe();
+  }, []);
 
-    setUser(fakeUser);
-    localStorage.setItem('user', JSON.stringify(fakeUser));
-  } finally {
-    setLoading(false);
-  }
-};
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-  };
-
-  const register = async (
-    name: string,
-    email: string,
-    _password: string,
-    role: 'aluno' = 'aluno'
-  ) => {
-    setLoading(true);
+  const login = async (email: string, password: string): Promise<void> => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const newUser: User = {
-        id: '2',
-        name,
-        email,
-        role,
-        createdAt: new Date(),
-      };
-
-      setUser(newUser);
-      localStorage.setItem('user', JSON.stringify(newUser));
+      setLoading(true);
+      const userData = await loginService(email, password);
+      setUser(userData);
+    } catch (error) {
+      console.error('Erro no login:', error);
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  // Mantém o login ao recarregar a página
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) setUser(JSON.parse(storedUser));
-  }, []);
-
-  const value: AuthContextType = {
-    user,
-    loading,
-    login,
-    logout,
-    register,
+  const logout = async (): Promise<void> => {
+    try {
+      await logoutService();
+      setUser(null);
+    } catch (error) {
+      console.error('Erro no logout:', error);
+      throw error;
+    }
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    role: 'aluno' = 'aluno'
+  ): Promise<void> => {
+    try {
+      setLoading(true);
+      const userData = await registerService({
+        name,
+        email,
+        password,
+        role,
+      });
+      setUser(userData);
+    } catch (error) {
+      console.error('Erro no registro:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, logout, register }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }

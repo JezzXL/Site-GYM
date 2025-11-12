@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Dumbbell, Mail, Lock, AlertCircle } from 'lucide-react';
@@ -14,15 +14,16 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   // Redirecionar se já estiver logado
-  if (user) {
-    const redirectMap = {
-      aluno: '/dashboard',
-      instrutor: '/instrutor',
-      admin: '/admin',
-    };
-    navigate(redirectMap[user.role], { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (user) {
+      const redirectMap = {
+        aluno: '/dashboard',
+        instrutor: '/instrutor',
+        admin: '/admin',
+      };
+      navigate(redirectMap[user.role], { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
