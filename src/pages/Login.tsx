@@ -3,10 +3,12 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Dumbbell, Mail, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useToastContext } from '../hooks/useToastContext';
 
 export default function Login() {
   const navigate = useNavigate();
   const { login, user } = useAuth();
+  const toast = useToastContext();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,10 +54,15 @@ export default function Login() {
 
       await login(email, password);
       
+      // Mostrar toast de sucesso
+      toast.success('Login realizado com sucesso!');
+      
       // Após login, será redirecionado automaticamente pelo useAuth
       navigate('/dashboard');
     } catch (err) {
-      setError('E-mail ou senha incorretos');
+      const message = err instanceof Error ? err.message : 'E-mail ou senha incorretos';
+      setError(message);
+      toast.error(message);
       console.error(err);
     } finally {
       setLoading(false);

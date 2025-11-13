@@ -3,6 +3,7 @@ export { useAuth } from './useAuth';
 
 // Toast notifications
 export { useToast } from './useToast';
+export { useToastContext } from './useToastContext';
 export type { Toast, ToastType } from './useToast';
 
 // Aulas hooks
