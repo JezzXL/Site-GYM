@@ -1,18 +1,83 @@
-rules_version='2'
-
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2025, 12, 7);
+    
+    // Função auxiliar para verificar se está autenticado
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // Função para verificar se é o próprio usuário
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // Função para verificar role
+    function hasRole(role) {
+      return isSignedIn() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+    
+    // Função para verificar se é admin
+    function isAdmin() {
+      return hasRole('admin');
+    }
+    
+    // Função para verificar se é instrutor
+    function isInstrutor() {
+      return hasRole('instrutor') || isAdmin();
+    }
+    
+    // ===== USERS =====
+    match /users/{userId} {
+      // Qualquer usuário autenticado pode ler
+      allow read: if isSignedIn();
+      
+      // Apenas o próprio usuário ou admin pode criar/atualizar
+      allow create: if isSignedIn();
+      allow update: if isOwner(userId) || isAdmin();
+      
+      // Apenas admin pode deletar
+      allow delete: if isAdmin();
+    }
+    
+    // ===== AULAS =====
+    match /aulas/{aulaId} {
+      // Qualquer usuário autenticado pode ler aulas
+      allow read: if isSignedIn();
+      
+      // Apenas instrutor ou admin pode criar/atualizar/deletar
+      allow create: if isInstrutor() || isAdmin();
+      allow update: if isInstrutor() || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // ===== RESERVAS =====
+    match /reservas/{reservaId} {
+      // Aluno pode ler suas próprias reservas
+      // Instrutor pode ler reservas de suas aulas
+      // Admin pode ler tudo
+      allow read: if isSignedIn() && (
+        resource.data.alunoId == request.auth.uid ||
+        isInstrutor() ||
+        isAdmin()
+      );
+      
+      // Aluno pode criar reserva
+      allow create: if isSignedIn() && 
+                      request.resource.data.alunoId == request.auth.uid;
+      
+      // Aluno pode cancelar sua reserva (update para status cancelada)
+      // Instrutor pode marcar presença (update para compareceu/ausente)
+      allow update: if isSignedIn() && (
+        (resource.data.alunoId == request.auth.uid && 
+         request.resource.data.status == 'cancelada') ||
+        isInstrutor() ||
+        isAdmin()
+      );
+      
+      // Apenas admin pode deletar
+      allow delete: if isAdmin();
     }
   }
 }
