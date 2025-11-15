@@ -1,77 +1,74 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { 
-  Dumbbell, User, LogOut, Calendar, CalendarDays, Mail, 
-  Lock, Camera, Save, X, CheckCircle, AlertCircle, Edit
-} from 'lucide-react';
+import { Mail, Lock, Camera, Save, AlertCircle, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useReservasStats } from '../hooks/useReservas';
+import { useToastContext } from '../hooks/useToastContext';
+import { updateUser, changePassword } from '../services/authService';
+import { DashboardLayout } from '../components/layout/Layout';
+import { PageHeader } from '../components/layout/PageHeader';
+import { Card, CardHeader, CardBody } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Badge } from '../components/ui/Badge';
+import { Modal, ModalBody, ModalFooter } from '../components/ui/Modal';
+import { getInitials, stringToColor } from '../utils/helpers';
 
 export default function Perfil() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
+  const toast = useToastContext();
   
+  // Estatísticas (apenas para alunos)
+  const { stats, loading: loadingStats } = useReservasStats(
+    user?.role === 'aluno' ? user.id : ''
+  );
+  
+  // Estados de edição
   const [editandoPerfil, setEditandoPerfil] = useState(false);
   const [editandoSenha, setEditandoSenha] = useState(false);
   const [showModalExcluir, setShowModalExcluir] = useState(false);
   
-  // Estados do formulário de perfil
+  // Form perfil
   const [nome, setNome] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   
-  // Estados do formulário de senha
+  // Form senha
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
   
-  const [mensagemSucesso, setMensagemSucesso] = useState('');
-  const [mensagemErro, setMensagemErro] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Dados mockados
-  const estatisticas = {
-    aulasRealizadas: 24,
-    horasTreino: 36,
-    sequenciaAtual: 5,
-    melhorSequencia: 12,
-  };
+  // Calcular horas de treino (para alunos)
+  const horasTreino = user?.role === 'aluno' ? stats.compareceu : 0;
+  const sequenciaAtual = user?.role === 'aluno' ? Math.min(stats.compareceu, 7) : 0;
 
   const handleSalvarPerfil = async (e: FormEvent) => {
     e.preventDefault();
-    setMensagemErro('');
-    setMensagemSucesso('');
+    
+    if (!nome || !email) {
+      toast.warning('Preencha todos os campos');
+      return;
+    }
+
+    if (nome.length < 3) {
+      toast.warning('O nome deve ter no mínimo 3 caracteres');
+      return;
+    }
+
+    if (!email.includes('@')) {
+      toast.warning('E-mail inválido');
+      return;
+    }
+
     setLoading(true);
-
     try {
-      // Validações
-      if (!nome || !email) {
-        setMensagemErro('Preencha todos os campos');
-        setLoading(false);
-        return;
-      }
-
-      if (nome.length < 3) {
-        setMensagemErro('O nome deve ter no mínimo 3 caracteres');
-        setLoading(false);
-        return;
-      }
-
-      if (!email.includes('@')) {
-        setMensagemErro('E-mail inválido');
-        setLoading(false);
-        return;
-      }
-
-      // TODO: Implementar atualização no backend
-      console.log('Atualizando perfil:', { nome, email });
-      
-      setMensagemSucesso('Perfil atualizado com sucesso!');
+      await updateUser({ name: nome, email });
+      toast.success('Perfil atualizado com sucesso!');
       setEditandoPerfil(false);
-      
-      setTimeout(() => setMensagemSucesso(''), 3000);
     } catch (error) {
-      setMensagemErro('Erro ao atualizar perfil');
-      console.error(error);
+      const message = error instanceof Error ? error.message : 'Erro ao atualizar perfil';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -79,461 +76,352 @@ export default function Perfil() {
 
   const handleAlterarSenha = async (e: FormEvent) => {
     e.preventDefault();
-    setMensagemErro('');
-    setMensagemSucesso('');
+    
+    if (!senhaAtual || !novaSenha || !confirmarSenha) {
+      toast.warning('Preencha todos os campos de senha');
+      return;
+    }
+
+    if (novaSenha.length < 6) {
+      toast.warning('A nova senha deve ter no mínimo 6 caracteres');
+      return;
+    }
+
+    if (novaSenha !== confirmarSenha) {
+      toast.warning('As senhas não coincidem');
+      return;
+    }
+
     setLoading(true);
-
     try {
-      // Validações
-      if (!senhaAtual || !novaSenha || !confirmarSenha) {
-        setMensagemErro('Preencha todos os campos de senha');
-        setLoading(false);
-        return;
-      }
-
-      if (novaSenha.length < 6) {
-        setMensagemErro('A nova senha deve ter no mínimo 6 caracteres');
-        setLoading(false);
-        return;
-      }
-
-      if (novaSenha !== confirmarSenha) {
-        setMensagemErro('As senhas não coincidem');
-        setLoading(false);
-        return;
-      }
-
-      // TODO: Implementar alteração de senha no backend
-      console.log('Alterando senha');
-      
-      setMensagemSucesso('Senha alterada com sucesso!');
+      await changePassword(senhaAtual, novaSenha);
+      toast.success('Senha alterada com sucesso!');
       setEditandoSenha(false);
       setSenhaAtual('');
       setNovaSenha('');
       setConfirmarSenha('');
-      
-      setTimeout(() => setMensagemSucesso(''), 3000);
     } catch (error) {
-      setMensagemErro('Erro ao alterar senha');
-      console.error(error);
+      const message = error instanceof Error ? error.message : 'Erro ao alterar senha';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleExcluirConta = () => {
-    console.log('Excluindo conta');
+    toast.error('Funcionalidade de exclusão de conta em desenvolvimento');
+    setShowModalExcluir(false);
     // TODO: Implementar exclusão de conta
-    logout();
-    navigate('/');
   };
 
   const getRoleBadge = () => {
     const badges = {
-      aluno: { color: 'bg-blue-100 text-blue-700', label: 'Aluno' },
-      instrutor: { color: 'bg-purple-100 text-purple-700', label: 'Instrutor' },
-      admin: { color: 'bg-[#6da67a] text-white', label: 'Administrador' },
+      aluno: { variant: 'info' as const, label: 'Aluno' },
+      instrutor: { variant: 'warning' as const, label: 'Instrutor' },
+      admin: { variant: 'primary' as const, label: 'Administrador' },
     };
     
     return badges[user?.role || 'aluno'];
   };
 
   const badge = getRoleBadge();
+  const avatarColor = stringToColor(user?.name || '');
+  const initials = getInitials(user?.name || '');
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-2">
-              <Dumbbell className="w-8 h-8 text-[#6da67a]" />
-              <span className="text-xl font-bold text-[#4a4857]">GymSchedule</span>
-            </div>
-            
-            <div className="flex items-center gap-6">
-              {user?.role === 'aluno' && (
-                <>
-                  <Link
-                    to="/dashboard"
-                    className="text-gray-600 hover:text-[#6da67a] transition-colors flex items-center gap-2"
+    <DashboardLayout>
+      <PageHeader
+        title="Meu Perfil"
+        subtitle="Gerencie suas informações pessoais e configurações"
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Sidebar */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Card de Perfil */}
+          <Card>
+            <CardBody>
+              <div className="text-center">
+                <div className="relative inline-block mb-4">
+                  <div 
+                    className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold"
+                    style={{ backgroundColor: avatarColor }}
                   >
-                    <Calendar className="w-5 h-5" />
-                    <span className="hidden sm:inline">Dashboard</span>
-                  </Link>
-                  <Link
-                    to="/calendario"
-                    className="text-gray-600 hover:text-[#6da67a] transition-colors flex items-center gap-2"
-                  >
-                    <CalendarDays className="w-5 h-5" />
-                    <span className="hidden sm:inline">Calendário</span>
-                  </Link>
-                </>
-              )}
-              {user?.role === 'instrutor' && (
-                <Link
-                  to="/instrutor"
-                  className="text-gray-600 hover:text-[#6da67a] transition-colors flex items-center gap-2"
-                >
-                  <Calendar className="w-5 h-5" />
-                  <span className="hidden sm:inline">Dashboard</span>
-                </Link>
-              )}
-              {user?.role === 'admin' && (
-                <Link
-                  to="/admin"
-                  className="text-gray-600 hover:text-[#6da67a] transition-colors flex items-center gap-2"
-                >
-                  <Calendar className="w-5 h-5" />
-                  <span className="hidden sm:inline">Dashboard</span>
-                </Link>
-              )}
-              <button
-                onClick={logout}
-                className="text-gray-600 hover:text-red-600 transition-colors flex items-center gap-2"
-              >
-                <LogOut className="w-5 h-5" />
-                <span className="hidden sm:inline">Sair</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Conteúdo Principal */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#4a4857] mb-2">
-            Meu Perfil
-          </h1>
-          <p className="text-gray-600">
-            Gerencie suas informações pessoais e configurações
-          </p>
-        </div>
-
-        {/* Mensagens */}
-        {mensagemSucesso && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-700">
-            <CheckCircle className="w-5 h-5 flex-shrink-0" />
-            <span>{mensagemSucesso}</span>
-          </div>
-        )}
-
-        {mensagemErro && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <span>{mensagemErro}</span>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Sidebar */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Card de Perfil */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
-              <div className="relative inline-block mb-4">
-                <div className="w-24 h-24 bg-gradient-to-br from-[#6da67a] to-[#77b885] rounded-full flex items-center justify-center text-white text-3xl font-bold">
-                  {user?.name?.charAt(0).toUpperCase()}
+                    {initials}
+                  </div>
+                  <button className="absolute bottom-0 right-0 w-8 h-8 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center hover:bg-gray-50 transition-colors">
+                    <Camera className="w-4 h-4 text-gray-600" />
+                  </button>
                 </div>
-                <button className="absolute bottom-0 right-0 w-8 h-8 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center hover:bg-gray-50 transition-colors">
-                  <Camera className="w-4 h-4 text-gray-600" />
-                </button>
+                
+                <h2 className="text-xl font-bold text-[#4a4857] mb-1">
+                  {user?.name}
+                </h2>
+                <p className="text-sm text-gray-500 mb-3">{user?.email}</p>
+                
+                <Badge variant={badge.variant} size="sm">
+                  {badge.label}
+                </Badge>
               </div>
-              
-              <h2 className="text-xl font-bold text-[#4a4857] mb-1">
-                {user?.name}
-              </h2>
-              <p className="text-sm text-gray-500 mb-3">{user?.email}</p>
-              
-              <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${badge.color}`}>
-                {badge.label}
-              </span>
-            </div>
+            </CardBody>
+          </Card>
 
-            {/* Estatísticas do Aluno */}
-            {user?.role === 'aluno' && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 className="font-bold text-[#4a4857] mb-4">Estatísticas</h3>
+          {/* Estatísticas do Aluno */}
+          {user?.role === 'aluno' && !loadingStats && (
+            <Card>
+              <CardHeader>
+                <h3 className="font-bold text-[#4a4857]">Estatísticas</h3>
+              </CardHeader>
+              <CardBody>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Aulas Realizadas</span>
-                    <span className="text-lg font-bold text-[#6da67a]">{estatisticas.aulasRealizadas}</span>
+                    <span className="text-lg font-bold text-[#6da67a]">{stats.compareceu}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Horas de Treino</span>
-                    <span className="text-lg font-bold text-[#77b885]">{estatisticas.horasTreino}h</span>
+                    <span className="text-lg font-bold text-[#77b885]">{horasTreino}h</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Sequência Atual</span>
-                    <span className="text-lg font-bold text-[#859987]">{estatisticas.sequenciaAtual} dias</span>
+                    <span className="text-lg font-bold text-[#859987]">{sequenciaAtual} dias</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Melhor Sequência</span>
-                    <span className="text-lg font-bold text-[#86c28b]">{estatisticas.melhorSequencia} dias</span>
+                    <span className="text-sm text-gray-600">Taxa de Presença</span>
+                    <span className="text-lg font-bold text-[#86c28b]">{stats.taxaPresenca}%</span>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+              </CardBody>
+            </Card>
+          )}
+        </div>
 
-          {/* Conteúdo Principal */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Informações Pessoais */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+        {/* Conteúdo Principal */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Informações Pessoais */}
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
                 <h3 className="text-lg font-bold text-[#4a4857]">Informações Pessoais</h3>
                 {!editandoPerfil && (
-                  <button
+                  <Button
                     onClick={() => setEditandoPerfil(true)}
-                    className="flex items-center gap-2 px-4 py-2 text-[#6da67a] hover:bg-[#6da67a]/10 rounded-lg transition-colors"
+                    variant="ghost"
+                    size="sm"
                   >
-                    <Edit className="w-4 h-4" />
                     Editar
-                  </button>
+                  </Button>
                 )}
               </div>
+            </CardHeader>
 
-              <div className="p-6">
-                {editandoPerfil ? (
-                  <form onSubmit={handleSalvarPerfil} className="space-y-4">
+            <CardBody>
+              {editandoPerfil ? (
+                <form onSubmit={handleSalvarPerfil} className="space-y-4">
+                  <Input
+                    label="Nome Completo"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    icon={<UserIcon className="w-5 h-5" />}
+                    fullWidth
+                    disabled={loading}
+                  />
+
+                  <Input
+                    label="E-mail"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    icon={<Mail className="w-5 h-5" />}
+                    fullWidth
+                    disabled={loading}
+                  />
+
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setEditandoPerfil(false);
+                        setNome(user?.name || '');
+                        setEmail(user?.email || '');
+                      }}
+                      variant="outline"
+                      disabled={loading}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      loading={loading}
+                      icon={<Save className="w-4 h-4" />}
+                    >
+                      Salvar
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <UserIcon className="w-5 h-5 text-gray-400" />
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nome Completo
-                      </label>
-                      <input
-                        type="text"
-                        value={nome}
-                        onChange={(e) => setNome(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6da67a] focus:border-transparent"
-                        disabled={loading}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        E-mail
-                      </label>
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6da67a] focus:border-transparent"
-                        disabled={loading}
-                      />
-                    </div>
-
-                    <div className="flex gap-3 pt-4">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditandoPerfil(false);
-                          setNome(user?.name || '');
-                          setEmail(user?.email || '');
-                        }}
-                        className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-                        disabled={loading}
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="flex-1 py-2 bg-[#6da67a] text-white rounded-lg font-medium hover:bg-[#77b885] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                      >
-                        {loading ? (
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <>
-                            <Save className="w-4 h-4" />
-                            Salvar
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <User className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-xs text-gray-500">Nome</p>
-                        <p className="font-medium text-[#4a4857]">{user?.name}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <Mail className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-xs text-gray-500">E-mail</p>
-                        <p className="font-medium text-[#4a4857]">{user?.email}</p>
-                      </div>
+                      <p className="text-xs text-gray-500">Nome</p>
+                      <p className="font-medium text-[#4a4857]">{user?.name}</p>
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <Mail className="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p className="text-xs text-gray-500">E-mail</p>
+                      <p className="font-medium text-[#4a4857]">{user?.email}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardBody>
+          </Card>
 
-            {/* Alterar Senha */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+          {/* Alterar Senha */}
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
                 <h3 className="text-lg font-bold text-[#4a4857]">Segurança</h3>
                 {!editandoSenha && (
-                  <button
+                  <Button
                     onClick={() => setEditandoSenha(true)}
-                    className="flex items-center gap-2 px-4 py-2 text-[#6da67a] hover:bg-[#6da67a]/10 rounded-lg transition-colors"
+                    variant="ghost"
+                    size="sm"
                   >
-                    <Lock className="w-4 h-4" />
                     Alterar Senha
-                  </button>
+                  </Button>
                 )}
               </div>
+            </CardHeader>
 
-              <div className="p-6">
-                {editandoSenha ? (
-                  <form onSubmit={handleAlterarSenha} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Senha Atual
-                      </label>
-                      <input
-                        type="password"
-                        value={senhaAtual}
-                        onChange={(e) => setSenhaAtual(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6da67a] focus:border-transparent"
-                        disabled={loading}
-                      />
-                    </div>
+            <CardBody>
+              {editandoSenha ? (
+                <form onSubmit={handleAlterarSenha} className="space-y-4">
+                  <Input
+                    label="Senha Atual"
+                    type="password"
+                    value={senhaAtual}
+                    onChange={(e) => setSenhaAtual(e.target.value)}
+                    icon={<Lock className="w-5 h-5" />}
+                    fullWidth
+                    disabled={loading}
+                  />
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nova Senha
-                      </label>
-                      <input
-                        type="password"
-                        value={novaSenha}
-                        onChange={(e) => setNovaSenha(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6da67a] focus:border-transparent"
-                        placeholder="Mínimo 6 caracteres"
-                        disabled={loading}
-                      />
-                    </div>
+                  <Input
+                    label="Nova Senha"
+                    type="password"
+                    value={novaSenha}
+                    onChange={(e) => setNovaSenha(e.target.value)}
+                    icon={<Lock className="w-5 h-5" />}
+                    placeholder="Mínimo 6 caracteres"
+                    fullWidth
+                    disabled={loading}
+                  />
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Confirmar Nova Senha
-                      </label>
-                      <input
-                        type="password"
-                        value={confirmarSenha}
-                        onChange={(e) => setConfirmarSenha(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6da67a] focus:border-transparent"
-                        disabled={loading}
-                      />
-                    </div>
+                  <Input
+                    label="Confirmar Nova Senha"
+                    type="password"
+                    value={confirmarSenha}
+                    onChange={(e) => setConfirmarSenha(e.target.value)}
+                    icon={<Lock className="w-5 h-5" />}
+                    fullWidth
+                    disabled={loading}
+                  />
 
-                    <div className="flex gap-3 pt-4">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditandoSenha(false);
-                          setSenhaAtual('');
-                          setNovaSenha('');
-                          setConfirmarSenha('');
-                        }}
-                        className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-                        disabled={loading}
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="flex-1 py-2 bg-[#6da67a] text-white rounded-lg font-medium hover:bg-[#77b885] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                      >
-                        {loading ? (
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <>
-                            <Save className="w-4 h-4" />
-                            Alterar Senha
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <Lock className="w-5 h-5 text-gray-400" />
-                    <div>
-                      <p className="text-xs text-gray-500">Senha</p>
-                      <p className="font-medium text-[#4a4857]">••••••••</p>
-                    </div>
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setEditandoSenha(false);
+                        setSenhaAtual('');
+                        setNovaSenha('');
+                        setConfirmarSenha('');
+                      }}
+                      variant="outline"
+                      disabled={loading}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      loading={loading}
+                      icon={<Save className="w-4 h-4" />}
+                    >
+                      Alterar Senha
+                    </Button>
                   </div>
-                )}
-              </div>
-            </div>
+                </form>
+              ) : (
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <Lock className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="text-xs text-gray-500">Senha</p>
+                    <p className="font-medium text-[#4a4857]">••••••••</p>
+                  </div>
+                </div>
+              )}
+            </CardBody>
+          </Card>
 
-            {/* Zona de Perigo */}
-            <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
-              <div className="p-6 border-b border-red-200 bg-red-50">
-                <h3 className="text-lg font-bold text-red-700">Zona de Perigo</h3>
-              </div>
-              <div className="p-6">
-                <p className="text-sm text-gray-600 mb-4">
-                  Uma vez que você exclua sua conta, não há como voltar atrás. Por favor, tenha certeza.
-                </p>
-                <button
-                  onClick={() => setShowModalExcluir(true)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
-                >
-                  Excluir Conta
-                </button>
-              </div>
-            </div>
-          </div>
+          {/* Zona de Perigo */}
+          <Card className="border-red-200">
+            <CardHeader className="bg-red-50 border-b border-red-200">
+              <h3 className="text-lg font-bold text-red-700">Zona de Perigo</h3>
+            </CardHeader>
+            <CardBody>
+              <p className="text-sm text-gray-600 mb-4">
+                Uma vez que você exclua sua conta, não há como voltar atrás. Por favor, tenha certeza.
+              </p>
+              <Button
+                onClick={() => setShowModalExcluir(true)}
+                variant="danger"
+              >
+                Excluir Conta
+              </Button>
+            </CardBody>
+          </Card>
         </div>
       </div>
 
       {/* Modal Confirmação Exclusão */}
       {showModalExcluir && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 relative">
-            <button
-              onClick={() => setShowModalExcluir(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-            >
-              <X className="w-6 h-6" />
-            </button>
-
+        <Modal
+          isOpen={showModalExcluir}
+          onClose={() => setShowModalExcluir(false)}
+          title="Excluir Conta?"
+        >
+          <ModalBody>
             <div className="text-center mb-6">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertCircle className="w-8 h-8 text-red-600" />
               </div>
-              <h2 className="text-2xl font-bold text-[#4a4857] mb-2">
-                Excluir Conta?
-              </h2>
               <p className="text-gray-600">
                 Esta ação é permanente e não pode ser desfeita. Todos os seus dados serão removidos.
               </p>
             </div>
+          </ModalBody>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowModalExcluir(false)}
-                className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleExcluirConta}
-                className="flex-1 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
-              >
-                Sim, Excluir
-              </button>
-            </div>
-          </div>
-        </div>
+          <ModalFooter>
+            <Button
+              onClick={() => setShowModalExcluir(false)}
+              variant="outline"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleExcluirConta}
+              variant="danger"
+            >
+              Sim, Excluir
+            </Button>
+          </ModalFooter>
+        </Modal>
       )}
-    </div>
+    </DashboardLayout>
   );
 }
