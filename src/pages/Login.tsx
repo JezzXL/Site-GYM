@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Dumbbell, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Dumbbell, Mail, Lock } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useToastContext } from '../hooks/useToastContext';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Alert } from '../components/ui/Alert';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -54,11 +57,9 @@ export default function Login() {
 
       await login(email, password);
       
-      // Mostrar toast de sucesso
       toast.success('Login realizado com sucesso!');
       
-      // Após login, será redirecionado automaticamente pelo useAuth
-      navigate('/dashboard');
+      // Navegação será feita pelo useEffect acima
     } catch (err) {
       const message = err instanceof Error ? err.message : 'E-mail ou senha incorretos';
       setError(message);
@@ -93,77 +94,57 @@ export default function Login() {
 
           {/* Erro */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <span className="text-sm">{error}</span>
-            </div>
+            <Alert variant="error" className="mb-6">
+              {error}
+            </Alert>
           )}
 
           {/* Formulário */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                E-mail
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
-                  className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6da67a] focus:border-transparent outline-none transition-all"
-                  disabled={loading}
-                />
-              </div>
-            </div>
+            <Input
+              id="email"
+              label="E-mail"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu@email.com"
+              icon={<Mail className="w-5 h-5" />}
+              fullWidth
+              disabled={loading}
+            />
 
-            {/* Senha */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Senha
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6da67a] focus:border-transparent outline-none transition-all"
-                  disabled={loading}
-                />
-              </div>
-            </div>
+            <Input
+              id="password"
+              label="Senha"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              icon={<Lock className="w-5 h-5" />}
+              fullWidth
+              disabled={loading}
+            />
 
             {/* Esqueci a senha */}
             <div className="text-right">
               <button
                 type="button"
                 className="text-sm text-[#6da67a] hover:text-[#77b885] font-medium"
+                onClick={() => toast.info('Funcionalidade em desenvolvimento')}
               >
                 Esqueceu sua senha?
               </button>
             </div>
 
             {/* Botão de Login */}
-            <button
+            <Button
               type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-[#6da67a] text-white rounded-lg font-semibold hover:bg-[#77b885] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              variant="primary"
+              fullWidth
+              loading={loading}
             >
-              {loading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Entrando...
-                </>
-              ) : (
-                'Entrar'
-              )}
-            </button>
+              Entrar
+            </Button>
           </form>
 
           {/* Divisor */}
