@@ -1,12 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Dumbbell, Mail, Lock, User, AlertCircle, CheckCircle } from 'lucide-react';
+import { Dumbbell, Mail, Lock, User, CheckCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useToastContext } from '../hooks/useToastContext';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Alert } from '../components/ui/Alert';
 
 export default function Register() {
   const navigate = useNavigate();
   const { register, user } = useAuth();
+  const toast = useToastContext();
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -16,15 +21,16 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
 
   // Redirecionar se já estiver logado
-  if (user) {
-    const redirectMap = {
-      aluno: '/dashboard',
-      instrutor: '/instrutor',
-      admin: '/admin',
-    };
-    navigate(redirectMap[user.role], { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (user) {
+      const redirectMap = {
+        aluno: '/dashboard',
+        instrutor: '/instrutor',
+        admin: '/admin',
+      };
+      navigate(redirectMap[user.role], { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -65,10 +71,13 @@ export default function Register() {
 
       await register(name, email, password);
       
-      // Redirecionar após cadastro
-      navigate('/dashboard');
+      toast.success('Conta criada com sucesso!');
+      
+      // Navegação será feita pelo useEffect
     } catch (err) {
-      setError('Erro ao criar conta. Tente novamente.');
+      const message = err instanceof Error ? err.message : 'Erro ao criar conta. Tente novamente.';
+      setError(message);
+      toast.error(message);
       console.error(err);
     } finally {
       setLoading(false);
@@ -117,69 +126,49 @@ export default function Register() {
 
           {/* Erro */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <span className="text-sm">{error}</span>
-            </div>
+            <Alert variant="error" className="mb-6">
+              {error}
+            </Alert>
           )}
 
           {/* Formulário */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Nome */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Nome completo
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Seu nome"
-                  className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6da67a] focus:border-transparent outline-none transition-all"
-                  disabled={loading}
-                />
-              </div>
-            </div>
+            <Input
+              id="name"
+              label="Nome completo"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Seu nome"
+              icon={<User className="w-5 h-5" />}
+              fullWidth
+              disabled={loading}
+            />
 
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                E-mail
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
-                  className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6da67a] focus:border-transparent outline-none transition-all"
-                  disabled={loading}
-                />
-              </div>
-            </div>
+            <Input
+              id="email"
+              label="E-mail"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu@email.com"
+              icon={<Mail className="w-5 h-5" />}
+              fullWidth
+              disabled={loading}
+            />
 
-            {/* Senha */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Senha
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                  className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6da67a] focus:border-transparent outline-none transition-all"
-                  disabled={loading}
-                />
-              </div>
+              <Input
+                id="password"
+                label="Senha"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                icon={<Lock className="w-5 h-5" />}
+                fullWidth
+                disabled={loading}
+              />
               
               {/* Força da senha */}
               {passwordStrength && (
@@ -195,51 +184,50 @@ export default function Register() {
               )}
             </div>
 
-            {/* Confirmar Senha */}
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                Confirmar senha
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Digite a senha novamente"
-                  className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6da67a] focus:border-transparent outline-none transition-all"
-                  disabled={loading}
-                />
-                {confirmPassword && password === confirmPassword && (
-                  <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
-                )}
-              </div>
+            <div className="relative">
+              <Input
+                id="confirmPassword"
+                label="Confirmar senha"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Digite a senha novamente"
+                icon={<Lock className="w-5 h-5" />}
+                fullWidth
+                disabled={loading}
+              />
+              {confirmPassword && password === confirmPassword && (
+                <CheckCircle className="absolute right-3 top-10 w-5 h-5 text-green-500" />
+              )}
             </div>
 
             {/* Botão de Cadastro */}
-            <button
+            <Button
               type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-[#6da67a] text-white rounded-lg font-semibold hover:bg-[#77b885] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              variant="primary"
+              fullWidth
+              loading={loading}
             >
-              {loading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Criando conta...
-                </>
-              ) : (
-                'Criar conta'
-              )}
-            </button>
+              Criar conta
+            </Button>
           </form>
 
           {/* Termos */}
           <p className="mt-4 text-xs text-gray-500 text-center">
             Ao criar uma conta, você concorda com nossos{' '}
-            <button className="text-[#6da67a] hover:underline">Termos de Uso</button>
+            <button 
+              className="text-[#6da67a] hover:underline"
+              onClick={() => toast.info('Página de termos em desenvolvimento')}
+            >
+              Termos de Uso
+            </button>
             {' '}e{' '}
-            <button className="text-[#6da67a] hover:underline">Política de Privacidade</button>
+            <button 
+              className="text-[#6da67a] hover:underline"
+              onClick={() => toast.info('Página de privacidade em desenvolvimento')}
+            >
+              Política de Privacidade
+            </button>
           </p>
 
           {/* Divisor */}
