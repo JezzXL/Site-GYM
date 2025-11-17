@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   Calendar, CalendarDays, Clock, Users, AlertCircle, Trash2,
   CheckCircle, XCircle, Filter
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { useReservas, useReservasStats } from '../hooks/useReservas';
+import { useReservasStats } from '../hooks/useReservas';
 import { useToastContext } from '../hooks/useToastContext';
 import { DashboardLayout } from '../components/layout/Layout';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -14,6 +14,7 @@ import { Modal, ModalBody, ModalFooter } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import type { Reserva, StatusReserva } from '../types';
+import { getReservas, cancelReserva as cancelReservaService } from '../services';
 import { 
   formatDate, 
   formatTime, 
@@ -28,27 +29,44 @@ export default function MinhasReservas() {
   const { user } = useAuth();
   const toast = useToastContext();
   
-  // Hooks de dados
-  const { 
-    reservas, 
-    loading: loadingReservas, 
-    error: errorReservas,
-    cancelReserva: cancelReservaService,
-    refresh
-  } = useReservas(user ? { alunoId: user.id } : undefined);
-  
-  const { 
-    stats, 
-    loading: loadingStats 
-  } = useReservasStats(user?.id || '');
-  
   // Estados locais
+  const [reservas, setReservas] = useState<Reserva[]>([]);
+  const [loadingReservas, setLoadingReservas] = useState(true);
+  const [errorReservas, setErrorReservas] = useState<string | null>(null);
   const [filtroStatus, setFiltroStatus] = useState<FiltroTipo>('ativas');
   const [showModalCancelar, setShowModalCancelar] = useState(false);
   const [reservaSelecionada, setReservaSelecionada] = useState<Reserva | null>(null);
   const [loadingCancel, setLoadingCancel] = useState(false);
+  
+  // Hook de estatísticas
+  const { 
+    stats, 
+    loading: loadingStats 
+  } = useReservasStats(user?.id || '');
 
-  // Processar reservas
+  // Buscar reservas apenas uma vez quando o componente montar
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchReservas = async () => {
+      try {
+        setLoadingReservas(true);
+        setErrorReservas(null);
+        const data = await getReservas({ alunoId: user.id });
+        setReservas(data);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Erro ao buscar reservas';
+        setErrorReservas(message);
+        console.error('Erro ao buscar reservas:', error);
+      } finally {
+        setLoadingReservas(false);
+      }
+    };
+
+    fetchReservas();
+  }, [user]); // ✅ DEPENDÊNCIA CORRETA: apenas user
+
+  // Processar reservas - agora usando useMemo com as reservas do estado local
   const reservasProcessadas = useMemo(() => {
     const ativas = reservas.filter(r => r.status === 'confirmada');
     const historico = reservas.filter(r => ['compareceu', 'ausente', 'cancelada'].includes(r.status));
@@ -85,7 +103,12 @@ export default function MinhasReservas() {
       toast.success('Reserva cancelada com sucesso!');
       setShowModalCancelar(false);
       setReservaSelecionada(null);
-      refresh(); // Atualizar lista
+      
+      // Atualizar lista de reservas
+      if (user) {
+        const data = await getReservas({ alunoId: user.id });
+        setReservas(data);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erro ao cancelar reserva';
       toast.error(message);
@@ -271,7 +294,7 @@ export default function MinhasReservas() {
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-1">
                           <h3 className="text-lg font-bold text-[#4a4857]">
-                            Aula #{reserva.id.substring(0, 8)}
+                            Reserva #{reserva.id.substring(0, 8)}
                           </h3>
                           {getStatusBadge(reserva.status)}
                         </div>
