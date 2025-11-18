@@ -1,5 +1,5 @@
 # 🏋️ GymSchedule
-
+<div align="center">
 Sistema completo de agendamento de aulas para academias, desenvolvido com React, TypeScript e Firebase.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
@@ -7,9 +7,33 @@ Sistema completo de agendamento de aulas para academias, desenvolvido com React,
 ![Firebase](https://img.shields.io/badge/Firebase-039BE5?style=for-the-badge&logo=Firebase&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 
+[🌐 Ver Demo](https://testegymsch.firebaseapp.com/) • [📧 Contato](mailto:davydsantos.gt@gmail.com) • [💼 LinkedIn](https://www.linkedin.com/in/davydwillianp/)
+
+</div>
+
 ## 📋 Sobre o Projeto
 
 GymSchedule é uma plataforma web moderna para gestão de aulas em academias, permitindo que administradores gerenciem aulas, instrutores e modalidades, enquanto alunos podem visualizar a grade de horários e fazer reservas de forma intuitiva.
+
+## 📸 Screenshots
+
+### Home
+![Home](./src/assets/Home.png)
+
+### Register
+![Register](./src/assets/Register.png)
+
+### Login
+![Login](./src/assets/Login.png)
+
+### Aluno
+![Aluno](./src/assets/Aluno.png)
+
+### Adminstrador
+![Adminstrador](./src/assets/Adminstrador.png)
+
+---
+
 
 ### ✨ Principais Funcionalidades
 
