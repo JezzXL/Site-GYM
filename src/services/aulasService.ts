@@ -8,7 +8,6 @@ import {
   getDocs,
   query,
   where,
-  orderBy,
   Timestamp,
 } from 'firebase/firestore';
 import type { DocumentSnapshot, DocumentData } from 'firebase/firestore';
@@ -39,6 +38,37 @@ function docToAula(doc: DocumentSnapshot<DocumentData>): Aula {
     createdAt: data?.createdAt?.toDate() || new Date(),
     updatedAt: data?.updatedAt?.toDate(),
   };
+}
+
+/**
+ * Ordem dos dias da semana para ordenação
+ */
+const DIAS_ORDEM: Record<string, number> = {
+  'Segunda-feira': 1,
+  'Terça-feira': 2,
+  'Quarta-feira': 3,
+  'Quinta-feira': 4,
+  'Sexta-feira': 5,
+  'Sábado': 6,
+  'Domingo': 7,
+};
+
+/**
+ * Ordena aulas por dia da semana e horário
+ */
+function sortAulas(aulas: Aula[]): Aula[] {
+  return aulas.sort((a, b) => {
+    // Primeiro ordena por dia da semana
+    const diaA = DIAS_ORDEM[a.diaSemana] || 0;
+    const diaB = DIAS_ORDEM[b.diaSemana] || 0;
+    
+    if (diaA !== diaB) {
+      return diaA - diaB;
+    }
+    
+    // Se for o mesmo dia, ordena por horário
+    return a.horario.localeCompare(b.horario);
+  });
 }
 
 /**
@@ -83,9 +113,7 @@ export async function getAulaById(id: string): Promise<Aula | null> {
   }
 }
 
-/**
- * Busca todas as aulas
- */
+
 export async function getAllAulas(filtros?: AulasFiltro): Promise<Aula[]> {
   try {
     let q = query(collection(db, COLLECTION_NAME));
@@ -107,11 +135,12 @@ export async function getAllAulas(filtros?: AulasFiltro): Promise<Aula[]> {
       q = query(q, where('ativa', '==', filtros.ativa));
     }
 
-    // Ordenar
-    q = query(q, orderBy('diaSemana'), orderBy('horario'));
-
+  
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(docToAula);
+    const aulas = querySnapshot.docs.map(docToAula);
+    
+    // Ordenar no cliente (JavaScript) ao invés do Firestore
+    return sortAulas(aulas);
   } catch (error) {
     console.error('Erro ao buscar aulas:', error);
     throw new Error('Erro ao buscar aulas');
@@ -125,13 +154,13 @@ export async function getAulasByInstrutor(instrutorId: string): Promise<Aula[]> 
   try {
     const q = query(
       collection(db, COLLECTION_NAME),
-      where('instrutorId', '==', instrutorId),
-      orderBy('diaSemana'),
-      orderBy('horario')
+      where('instrutorId', '==', instrutorId)
     );
 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(docToAula);
+    const aulas = querySnapshot.docs.map(docToAula);
+    
+    return sortAulas(aulas);
   } catch (error) {
     console.error('Erro ao buscar aulas do instrutor:', error);
     throw new Error('Erro ao buscar aulas do instrutor');
@@ -145,13 +174,13 @@ export async function getAulasAtivas(): Promise<Aula[]> {
   try {
     const q = query(
       collection(db, COLLECTION_NAME),
-      where('ativa', '==', true),
-      orderBy('diaSemana'),
-      orderBy('horario')
+      where('ativa', '==', true)
     );
 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(docToAula);
+    const aulas = querySnapshot.docs.map(docToAula);
+    
+    return sortAulas(aulas);
   } catch (error) {
     console.error('Erro ao buscar aulas ativas:', error);
     throw new Error('Erro ao buscar aulas ativas');

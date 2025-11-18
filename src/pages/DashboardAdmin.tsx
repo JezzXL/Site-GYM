@@ -23,10 +23,11 @@ export default function DashboardAdmin() {
   const { user } = useAuth();
   const toast = useToastContext();
   
-  // Hooks de dados
+  // Hooks de dados - buscar TODAS as aulas sem filtros
   const { 
     aulas, 
     loading: loadingAulas, 
+    error: errorAulas,
     createAula,
     updateAula,
     deleteAula,
@@ -208,6 +209,14 @@ export default function DashboardAdmin() {
 
   const isLoading = loadingAulas || loadingReservas;
 
+  // Log para debug
+  console.log('📊 Dashboard Admin:', {
+    aulas: aulas.length,
+    loadingAulas,
+    errorAulas,
+    reservas: reservas.length
+  });
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -217,6 +226,23 @@ export default function DashboardAdmin() {
         />
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6da67a]"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Verificar se há erro
+  if (errorAulas) {
+    console.error('❌ Erro ao carregar aulas:', errorAulas);
+    return (
+      <DashboardLayout>
+        <PageHeader title="Dashboard Admin" />
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <h3 className="text-lg font-semibold text-red-800 mb-2">Erro ao carregar aulas</h3>
+          <p className="text-red-600">{errorAulas}</p>
+          <Button onClick={refresh} variant="primary" className="mt-4">
+            Tentar Novamente
+          </Button>
         </div>
       </DashboardLayout>
     );
